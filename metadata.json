@@ -1,0 +1,8 @@
+{
+  "name": "Cyber Escape Room AI",
+  "description": "An interactive, AI-powered cybersecurity escape room and incident investigation game. Analyze complex security logs, suspect email headers, employee networks, and execute critical incident response playbook measures.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

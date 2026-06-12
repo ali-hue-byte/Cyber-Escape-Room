@@ -1,2 +1,20 @@
-# Cyber-Escape-Room
-An AI-powered cybersecurity investigation game where you act as a SOC analyst solving realistic incident-response cases. Built for Microsoft AI Skills Fest 2026.
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
+
+# Run and deploy your AI Studio app
+
+This contains everything you need to run your app locally.
+
+View your app in AI Studio: https://ai.studio/apps/e1747ee2-900b-45b6-a4e6-2910bb055abc
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
