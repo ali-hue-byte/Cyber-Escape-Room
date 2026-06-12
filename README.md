@@ -85,7 +85,16 @@ FRONTEND                        BACKEND                        GEMINI API
 
 ---
 
+## 🚀 Live Demo
+
+Try it instantly — no setup, no API key required:
+
+**[Cyber-Escape-Room](https://cyber-escape-room-ai.onrender.com)**
+
+---
+
 ## Quick Start
+
 
 ### Prerequisites
 - Node.js 18+
