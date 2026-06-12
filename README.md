@@ -184,23 +184,21 @@ See your AI-graded score and the correct solution, evaluated by the secure backe
 
 ## Scoring System
 
-| Component | Points | Notes |
-|-----------|--------|-------|
+| Component | Points | Formula |
+|-----------|--------|---------|
 | Accuracy | 0-100 | 4 fields (Attack Type, Entry Point, Vulnerability, Mitigation), 0-25 each, AI-graded |
-| Time Bonus | 0-100 | Based on investigation time |
-| Hint Penalty | per hint | Deducted for each hint used |
-| **Total Score** | — | Accuracy + Time Bonus − Hint Penalty |
+| Time Bonus | 0-25 | `floor(min(100, max(0, 100 - timeSpentSeconds / 20)) × 0.25)` |
+| Hint Penalty | -10/hint | `hintsUsed × 10` |
+| **Total Score** | 0-150 | `clamp(0, 150, Accuracy + Time Bonus - Hint Penalty)` |
 
 ### Investigator Ranks
 
-| Rank | Points | 
+| Rank | Total Score |
 |------|--------|
-| 🎓 Trainee | 0-149 |
-| 📊 Junior Analyst | 150-249 |
-| 🔍 Security Analyst | 250-299 |
-| 👨‍💼 Senior Analyst | 300-349 |
-| 🐺 Threat Hunter | 350-399 |
-| 🏛️ Security Architect | 400+ |
+| Junior SOC Level I Analyst | 0-59 |
+| Capably Certified Security Associate | 60-79 |
+| Incident Response Lead (level II) | 80-94 |
+| Elite Cyber Threat Hunter (level III) | 95-150 |
 
 ---
 
@@ -256,6 +254,7 @@ curl -X POST http://localhost:3000/api/incident/accuse \
     "hintsUsed": 1
   }'
 ```
+Returns `{ evaluation: { accuracyScore, timeBonus, hintPenalty, totalScore, rating, feedback, correctSolution } }`
 
 ---
 
