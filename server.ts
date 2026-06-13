@@ -426,7 +426,7 @@ Return the grading strictly in JSON format matching the schema rules. No markdow
     // Max bonus is 100. Decreases slowly. For beginner/intermediate 15 mins is typical. Let's make it rewarding:
     const timeBonus = Math.max(0, Math.min(100, 100 - Math.floor(timeSpent / 20)));
 
-    const finalScore = Math.max(0, Math.min(150, accuracy + Math.floor(timeBonus * 0.25) - hintPenalty));
+    const finalScore = Math.max(0, Math.min(150, accuracy + Math.floor(timeBonus * 0.5) - hintPenalty));
 
     let rating = "Junior SOC Level I Analyst";
     if (finalScore >= 95) {
