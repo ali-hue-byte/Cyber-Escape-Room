@@ -267,30 +267,6 @@ Returns `{ evaluation: { accuracyScore, timeBonus, hintPenalty, totalScore, rati
 
 ---
 
-## Deployment
-
-### Quick Deploy to Render
-
-1. Push your repo to GitHub (`.env` stays local — it's gitignored)
-2. Create a new **Web Service** on [render.com](https://render.com) and connect your repo
-3. Build Command: `npm install && npm run build`
-4. Start Command: `npm start`
-5. Add an environment variable: `GEMINI_API_KEY` = your real key
-6. Deploy — Render gives you a live URL
-
----
-
-## Environment Variables
-
-### `.env`
-```env
-GEMINI_API_KEY=your_actual_key_here
-```
-
-That's the only secret required - it's read server-side only and never exposed to the client.
-
----
-
 ## Tech Stack
 
 | Layer | Technology | Purpose |
@@ -301,6 +277,7 @@ That's the only secret required - it's read server-side only and never exposed t
 | **Backend** | Express.js | API server (single process with Vite) |
 | **AI** | Gemini API (`gemini-3.5-flash`) | Content generation & grading |
 | **Security** | dotenv + express-rate-limit | Protected secrets, abuse prevention |
+| **Development** | Github Copilot | AI pair-programming assistant |
 
 ---
 
