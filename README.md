@@ -196,7 +196,7 @@ See your AI-graded score and the correct solution, evaluated by the secure backe
 | Component | Points | Formula |
 |-----------|--------|---------|
 | Accuracy | 0-100 | 4 fields (Attack Type, Entry Point, Vulnerability, Mitigation), 0-25 each, AI-graded |
-| Time Bonus | 0-50 | `floor(min(100, max(0, 100 - timeSpentSeconds / 20)) × 0.25)` |
+| Time Bonus | 0-50 | `floor(min(100, max(0, 100 - timeSpentSeconds / 20)) × 0.5)` |
 | Hint Penalty | -10/hint | `hintsUsed × 10` |
 | **Total Score** | 0-150 | `clamp(0, 150, Accuracy + Time Bonus - Hint Penalty)` |
 
