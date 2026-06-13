@@ -120,7 +120,7 @@ Try it instantly — no setup, no API key required:
    ```
    Edit `.env` and add your Gemini API key:
    ```env
-   GEMINI_API_KEY=your_actual_key_here
+   GEMINI_API_KEY="your_Gemini_api_key"
    ```
 
    Don't have a key yet? Get one free at [aistudio.google.com](https://aistudio.google.com).
