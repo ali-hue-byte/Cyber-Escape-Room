@@ -440,7 +440,7 @@ Return the grading strictly in JSON format matching the schema rules. No markdow
     res.json({
       evaluation: {
         accuracyScore: accuracy,
-        timeBonus: Math.floor(timeBonus * 0.25),
+        timeBonus: Math.floor(timeBonus * 0.5),
         hintPenalty,
         totalScore: finalScore,
         rating,
