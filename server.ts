@@ -1,7 +1,8 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
+import Client from "@azure-rest/ai-inference";
+import { AzureKeyCredential } from "@azure/core-auth";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -14,22 +15,16 @@ app.use(express.json());
 // In-memory active game cases store
 const activeGames = new Map<string, any>();
 
-let aiClient: GoogleGenAI | null = null;
+let aiClient: any = null;
 
-function getGeminiClient(): GoogleGenAI {
+function getFoundryClient() {
   if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("GEMINI_API_KEY environment variable is required. Please set it in the Secrets panel.");
+    const endpoint = process.env.AZURE_AI_FOUNDRY_ENDPOINT;
+    const key = process.env.AZURE_AI_FOUNDRY_KEY;
+    if (!endpoint || !key) {
+      throw new Error("AZURE_AI_FOUNDRY_ENDPOINT and AZURE_AI_FOUNDRY_KEY environment variables are required.");
     }
-    aiClient = new GoogleGenAI({
-      apiKey: key,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
+    aiClient = Client(endpoint, new AzureKeyCredential(key));
   }
   return aiClient;
 }
@@ -37,7 +32,7 @@ function getGeminiClient(): GoogleGenAI {
 // 1. Generate Cybersecurity Incident
 app.post("/api/incident/generate", async (req, res) => {
   try {
-    const ai = getGeminiClient();
+    const client = getFoundryClient();
     const { difficulty } = req.body;
     
     if (!difficulty || !['Beginner', 'Intermediate', 'Expert'].includes(difficulty)) {
@@ -72,136 +67,144 @@ Configure a hidden logical correct solution block containing concrete strings fo
 
     const prompt = `Generate a realistic incident case for difficulty "${difficulty}" and category "${chosenCategory}". Give it a unique cyberpunk or high-tech corporate setting. Create highly realistic IP addresses, email addresses, employee names, and system logs. Do not mention the solution in the general description or evidence areas. Ensure all dates and logs are consistent.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
+    // Standard JSON Schema definition for Azure AI Inference structure definitions
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        companyName: { type: "string" },
+        category: { type: "string" },
+        scenarioDescription: { type: "string" },
+        timeline: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              time: { type: "string" },
+              event: { type: "string" }
+            },
+            required: ["time", "event"]
+          }
+        },
+        employees: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              role: { type: "string" },
+              department: { type: "string" },
+              accessLevel: { type: "string" },
+              statement: { type: "string" }
+            },
+            required: ["name", "role", "department", "accessLevel", "statement"]
+          }
+        },
+        logs: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              timestamp: { type: "string" },
+              sourceIp: { type: "string" },
+              destinationIp: { type: "string" },
+              protocol: { type: "string" },
+              action: { type: "string" },
+              status: { type: "string" },
+              details: { type: "string" }
+            },
+            required: ["timestamp", "sourceIp", "destinationIp", "action", "status", "details"]
+          }
+        },
+        emails: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              sender: { type: "string" },
+              recipient: { type: "string" },
+              date: { type: "string" },
+              subject: { type: "string" },
+              body: { type: "string" }
+            },
+            required: ["id", "sender", "recipient", "date", "subject", "body"]
+          }
+        },
+        networkActivity: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              time: { type: "string" },
+              source: { type: "string" },
+              destination: { type: "string" },
+              bytesTransferred: { type: "number" },
+              alertFlag: { type: "boolean" }
+            },
+            required: ["time", "source", "destination", "bytesTransferred", "alertFlag"]
+          }
+        },
+        alerts: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              timestamp: { type: "string" },
+              severity: { type: "string" },
+              message: { type: "string" },
+              system: { type: "string" }
+            },
+            required: ["id", "timestamp", "severity", "message", "system"]
+          }
+        },
+        hintsProgressive: {
+          type: "array",
+          items: { type: "string" }
+        },
+        solution: {
+          type: "object",
           properties: {
-            companyName: { type: Type.STRING },
-            category: { type: Type.STRING },
-            scenarioDescription: { type: Type.STRING },
-            timeline: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  time: { type: Type.STRING },
-                  event: { type: Type.STRING }
-                },
-                required: ["time", "event"]
-              }
-            },
-            employees: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  role: { type: Type.STRING },
-                  department: { type: Type.STRING },
-                  accessLevel: { type: Type.STRING },
-                  statement: { type: Type.STRING }
-                },
-                required: ["name", "role", "department", "accessLevel", "statement"]
-              }
-            },
-            logs: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  timestamp: { type: Type.STRING },
-                  sourceIp: { type: Type.STRING },
-                  destinationIp: { type: Type.STRING },
-                  protocol: { type: Type.STRING },
-                  action: { type: Type.STRING },
-                  status: { type: Type.STRING },
-                  details: { type: Type.STRING }
-                },
-                required: ["timestamp", "sourceIp", "destinationIp", "action", "status", "details"]
-              }
-            },
-            emails: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  sender: { type: Type.STRING },
-                  recipient: { type: Type.STRING },
-                  date: { type: Type.STRING },
-                  subject: { type: Type.STRING },
-                  body: { type: Type.STRING }
-                },
-                required: ["id", "sender", "recipient", "date", "subject", "body"]
-              }
-            },
-            networkActivity: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  time: { type: Type.STRING },
-                  source: { type: Type.STRING },
-                  destination: { type: Type.STRING },
-                  bytesTransferred: { type: Type.NUMBER },
-                  alertFlag: { type: Type.BOOLEAN }
-                },
-                required: ["time", "source", "destination", "bytesTransferred", "alertFlag"]
-              }
-            },
-            alerts: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  timestamp: { type: Type.STRING },
-                  severity: { type: Type.STRING },
-                  message: { type: Type.STRING },
-                  system: { type: Type.STRING }
-                },
-                required: ["id", "timestamp", "severity", "message", "system"]
-              }
-            },
-            hintsProgressive: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            solution: {
-              type: Type.OBJECT,
-              properties: {
-                attackType: { type: Type.STRING },
-                entryPoint: { type: Type.STRING },
-                vulnerability: { type: Type.STRING },
-                mitigation: { type: Type.STRING },
-                attackPathExplanation: { type: Type.STRING }
-              },
-              required: ["attackType", "entryPoint", "vulnerability", "mitigation", "attackPathExplanation"]
-            }
+            attackType: { type: "string" },
+            entryPoint: { type: "string" },
+            vulnerability: { type: "string" },
+            mitigation: { type: "string" },
+            attackPathExplanation: { type: "string" }
           },
-          required: [
-            "companyName", "category", "scenarioDescription", "timeline", 
-            "employees", "logs", "emails", "networkActivity", "alerts", 
-            "hintsProgressive", "solution"
-          ]
+          required: ["attackType", "entryPoint", "vulnerability", "mitigation", "attackPathExplanation"]
         }
+      },
+      required: [
+        "companyName", "category", "scenarioDescription", "timeline", 
+        "employees", "logs", "emails", "networkActivity", "alerts", 
+        "hintsProgressive", "solution"
+      ]
+    };
+
+    const response = await client.path("/chat/completions").post({
+      body: {
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: prompt }
+        ],
+        response_format: {
+          type: "json_object",
+          schema: jsonSchema
+        },
+        temperature: 0.8
       }
     });
 
-    const parsedData = JSON.parse(response.text || "{}");
+    const contentText = response.body.choices[0].message.content;
+    const parsedData = JSON.parse(contentText || "{}");
     const id = "case_" + Math.random().toString(36).substring(2, 10);
     parsedData.id = id;
+    parsedData.difficulty = difficulty; // Store explicitly to support cache lookups
 
     // Cache the whole configuration with solution in memory
     activeGames.set(id, parsedData);
 
     // Return to the client WITHOUT the solution or the hints list content 
-    // We send hints count, we let them fetch progressive hints dynamically via the endpoint
     const { solution, hintsProgressive, ...publicCase } = parsedData;
 
     res.json({
@@ -220,7 +223,7 @@ Configure a hidden logical correct solution block containing concrete strings fo
 // 2. Chat with the CSOC Lead / Incident Database
 app.post("/api/incident/chat", async (req, res) => {
   try {
-    const ai = getGeminiClient();
+    const client = getFoundryClient();
     const { incidentId, message, chatHistory } = req.body;
 
     if (!incidentId || !message) {
@@ -234,7 +237,6 @@ app.post("/api/incident/chat", async (req, res) => {
       return;
     }
 
-    // Limit previous chat history context to keep it clean
     const formattedHistory = (chatHistory || []).slice(-10).map((m: any) => {
       return `${m.role === 'user' ? 'Junior Analyst' : 'Lead Investigator'}: ${m.content}`;
     }).join("\n");
@@ -268,16 +270,17 @@ Junior Analyst: "${message}"
 
 Generate your response as the Lead Investigator. Guide me without giving away the core solution. Highlight details in logs, employee statements, or emails relevant to my question.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: userPrompt,
-      config: {
-        systemInstruction,
+    const response = await client.path("/chat/completions").post({
+      body: {
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: userPrompt }
+        ],
         temperature: 0.7,
       }
     });
 
-    res.json({ response: response.text });
+    res.json({ response: response.body.choices[0].message.content });
   } catch (error: any) {
     console.error("Chat Integration Error:", error);
     res.status(500).json({ error: error.message || "An error occurred with the AI assistant." });
@@ -287,7 +290,7 @@ Generate your response as the Lead Investigator. Guide me without giving away th
 // 3. Request progressive hints
 app.post("/api/incident/hint", async (req, res) => {
   try {
-    const { incidentId, hintLevel } = req.body; // hintLevel is 1, 2, or 3
+    const { incidentId, hintLevel } = req.body;
 
     if (!incidentId || typeof hintLevel !== "number" || hintLevel < 1 || hintLevel > 3) {
       res.status(400).json({ error: "Invalid parameters. Require incidentId and hintLevel (1, 2, or 3)." });
@@ -312,7 +315,7 @@ app.post("/api/incident/hint", async (req, res) => {
 // 4. Accusation evaluation system (AI Grading)
 app.post("/api/incident/accuse", async (req, res) => {
   try {
-    const ai = getGeminiClient();
+    const client = getFoundryClient();
     const { incidentId, submission, timeSpentSeconds, hintsUsed } = req.body;
 
     if (!incidentId || !submission) {
@@ -357,65 +360,70 @@ Provide a clear, brief, constructive evaluation and justification feedback messa
 
 Return the grading strictly in JSON format matching the schema rules. No markdown blocks.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: "Run the final grading evaluation and output the JSON scoring results.",
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
+    const evaluationSchema = {
+      type: "object",
+      properties: {
+        accuracyScore: { type: "integer" },
+        feedback: {
+          type: "object",
           properties: {
-            accuracyScore: { type: Type.INTEGER },
-            feedback: {
-              type: Type.OBJECT,
+            attackType: {
+              type: "object",
               properties: {
-                attackType: {
-                  type: Type.OBJECT,
-                  properties: {
-                    score: { type: Type.INTEGER },
-                    status: { type: Type.STRING },
-                    explanation: { type: Type.STRING }
-                  },
-                  required: ["score", "status", "explanation"]
-                },
-                entryPoint: {
-                  type: Type.OBJECT,
-                  properties: {
-                    score: { type: Type.INTEGER },
-                    status: { type: Type.STRING },
-                    explanation: { type: Type.STRING }
-                  },
-                  required: ["score", "status", "explanation"]
-                },
-                vulnerability: {
-                  type: Type.OBJECT,
-                  properties: {
-                    score: { type: Type.INTEGER },
-                    status: { type: Type.STRING },
-                    explanation: { type: Type.STRING }
-                  },
-                  required: ["score", "status", "explanation"]
-                },
-                mitigation: {
-                  type: Type.OBJECT,
-                  properties: {
-                    score: { type: Type.INTEGER },
-                    status: { type: Type.STRING },
-                    explanation: { type: Type.STRING }
-                  },
-                  required: ["score", "status", "explanation"]
-                }
+                score: { type: "integer" },
+                status: { type: "string" },
+                explanation: { type: "string" }
               },
-              required: ["attackType", "entryPoint", "vulnerability", "mitigation"]
+              required: ["score", "status", "explanation"]
+            },
+            entryPoint: {
+              type: "object",
+              properties: {
+                score: { type: "integer" },
+                status: { type: "string" },
+                explanation: { type: "string" }
+              },
+              required: ["score", "status", "explanation"]
+            },
+            vulnerability: {
+              type: "object",
+              properties: {
+                score: { type: "integer" },
+                status: { type: "string" },
+                explanation: { type: "string" }
+              },
+              required: ["score", "status", "explanation"]
+            },
+            mitigation: {
+              type: "object",
+              properties: {
+                score: { type: "integer" },
+                status: { type: "string" },
+                explanation: { type: "string" }
+              },
+              required: ["score", "status", "explanation"]
             }
           },
-          required: ["accuracyScore", "feedback"]
+          required: ["attackType", "entryPoint", "vulnerability", "mitigation"]
+        }
+      },
+      required: ["accuracyScore", "feedback"]
+    };
+
+    const response = await client.path("/chat/completions").post({
+      body: {
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: "Run the final grading evaluation and output the JSON scoring results." }
+        ],
+        response_format: {
+          type: "json_object",
+          schema: evaluationSchema
         }
       }
     });
 
-    const evalResult = JSON.parse(response.text || "{}");
+    const evalResult = JSON.parse(response.body.choices[0].message.content || "{}");
 
     // Perform calculated metrics
     const accuracy = evalResult.accuracyScore || 0;
@@ -423,9 +431,7 @@ Return the grading strictly in JSON format matching the schema rules. No markdow
     const hints = hintsUsed || 0;
 
     const hintPenalty = hints * 10;
-    // Max bonus is 100. Decreases slowly. For beginner/intermediate 15 mins is typical. Let's make it rewarding:
     const timeBonus = Math.max(0, Math.min(100, 100 - Math.floor(timeSpent / 20)));
-
     const finalScore = Math.max(0, Math.min(150, accuracy + Math.floor(timeBonus * 0.5) - hintPenalty));
 
     let rating = "Junior SOC Level I Analyst";
@@ -460,7 +466,6 @@ Return the grading strictly in JSON format matching the schema rules. No markdow
     res.status(500).json({ error: error.message || "An error occurred during evaluation." });
   }
 });
-
 
 // Static files and Vite integration
 async function startServer() {
