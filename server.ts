@@ -34,40 +34,10 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
-/**
- * Helper function to wrap Gemini content generation with an exponential backoff.
- * This directly catches 429 rate limits and retries automatically before failing.
- */
-async function generateContentWithRetry(config: any, maxRetries = 4, initialDelayMs = 2000): Promise<any> {
-  const ai = getGeminiClient();
-  let delay = initialDelayMs;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent(config);
-      return response;
-    } catch (error: any) {
-      // Check if error status reflects a rate limit (429) or resource exhaustion text
-      const isRateLimit = error.status === 429 || 
-                          (error.message && error.message.includes("429")) || 
-                          (error.message && error.message.includes("RESOURCE_EXHAUSTED"));
-
-      if (isRateLimit && attempt < maxRetries) {
-        console.warn(`[Gemini API] Rate limit hit (429). Attempt ${attempt}/${maxRetries}. Retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        delay *= 2; // Double the sleep window for the next potential hit
-        continue;
-      }
-
-      // If it's another error (400, 403, 500) or we exhausted our retries, throw it
-      throw error;
-    }
-  }
-}
-
 // 1. Generate Cybersecurity Incident
 app.post("/api/incident/generate", async (req, res) => {
   try {
+    const ai = getGeminiClient();
     const { difficulty } = req.body;
     
     if (!difficulty || !['Beginner', 'Intermediate', 'Expert'].includes(difficulty)) {
@@ -102,8 +72,7 @@ Configure a hidden logical correct solution block containing concrete strings fo
 
     const prompt = `Generate a realistic incident case for difficulty "${difficulty}" and category "${chosenCategory}". Give it a unique cyberpunk or high-tech corporate setting. Create highly realistic IP addresses, email addresses, employee names, and system logs. Do not mention the solution in the general description or evidence areas. Ensure all dates and logs are consistent.`;
 
-    // Hand execution context off to retry loop wrapper
-    const response = await generateContentWithRetry({
+    const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
@@ -227,12 +196,12 @@ Configure a hidden logical correct solution block containing concrete strings fo
     const parsedData = JSON.parse(response.text || "{}");
     const id = "case_" + Math.random().toString(36).substring(2, 10);
     parsedData.id = id;
-    parsedData.difficulty = difficulty; // Retain difficulty level inside state tracking
 
     // Cache the whole configuration with solution in memory
     activeGames.set(id, parsedData);
 
     // Return to the client WITHOUT the solution or the hints list content 
+    // We send hints count, we let them fetch progressive hints dynamically via the endpoint
     const { solution, hintsProgressive, ...publicCase } = parsedData;
 
     res.json({
@@ -251,6 +220,7 @@ Configure a hidden logical correct solution block containing concrete strings fo
 // 2. Chat with the CSOC Lead / Incident Database
 app.post("/api/incident/chat", async (req, res) => {
   try {
+    const ai = getGeminiClient();
     const { incidentId, message, chatHistory } = req.body;
 
     if (!incidentId || !message) {
@@ -264,6 +234,7 @@ app.post("/api/incident/chat", async (req, res) => {
       return;
     }
 
+    // Limit previous chat history context to keep it clean
     const formattedHistory = (chatHistory || []).slice(-10).map((m: any) => {
       return `${m.role === 'user' ? 'Junior Analyst' : 'Lead Investigator'}: ${m.content}`;
     }).join("\n");
@@ -273,7 +244,7 @@ Your junior analyst is currently investigating a live threat incident details be
 
 COMPANY NAME: "${fullCaseObj.companyName}"
 INCIDENT CATEGORY: "${fullCaseObj.category}"
-DIFFICULTY: "${fullCaseObj.difficulty || 'Intermediate'}"
+DIFFICULTY: "${fullCaseObj.difficulty}"
 SCENARIO DETAILS: "${fullCaseObj.scenarioDescription}"
 
 TRUE SOLUTION (GROUND TRUTH):
@@ -297,8 +268,7 @@ Junior Analyst: "${message}"
 
 Generate your response as the Lead Investigator. Guide me without giving away the core solution. Highlight details in logs, employee statements, or emails relevant to my question.`;
 
-    // Hand execution context off to retry loop wrapper
-    const response = await generateContentWithRetry({
+    const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: userPrompt,
       config: {
@@ -317,7 +287,7 @@ Generate your response as the Lead Investigator. Guide me without giving away th
 // 3. Request progressive hints
 app.post("/api/incident/hint", async (req, res) => {
   try {
-    const { incidentId, hintLevel } = req.body; 
+    const { incidentId, hintLevel } = req.body; // hintLevel is 1, 2, or 3
 
     if (!incidentId || typeof hintLevel !== "number" || hintLevel < 1 || hintLevel > 3) {
       res.status(400).json({ error: "Invalid parameters. Require incidentId and hintLevel (1, 2, or 3)." });
@@ -342,6 +312,7 @@ app.post("/api/incident/hint", async (req, res) => {
 // 4. Accusation evaluation system (AI Grading)
 app.post("/api/incident/accuse", async (req, res) => {
   try {
+    const ai = getGeminiClient();
     const { incidentId, submission, timeSpentSeconds, hintsUsed } = req.body;
 
     if (!incidentId || !submission) {
@@ -386,8 +357,7 @@ Provide a clear, brief, constructive evaluation and justification feedback messa
 
 Return the grading strictly in JSON format matching the schema rules. No markdown blocks.`;
 
-    // Hand execution context off to retry loop wrapper
-    const response = await generateContentWithRetry({
+    const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: "Run the final grading evaluation and output the JSON scoring results.",
       config: {
@@ -453,7 +423,9 @@ Return the grading strictly in JSON format matching the schema rules. No markdow
     const hints = hintsUsed || 0;
 
     const hintPenalty = hints * 10;
+    // Max bonus is 100. Decreases slowly. For beginner/intermediate 15 mins is typical. Let's make it rewarding:
     const timeBonus = Math.max(0, Math.min(100, 100 - Math.floor(timeSpent / 20)));
+
     const finalScore = Math.max(0, Math.min(150, accuracy + Math.floor(timeBonus * 0.5) - hintPenalty));
 
     let rating = "Junior SOC Level I Analyst";
