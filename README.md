@@ -294,7 +294,7 @@ Returns `{ evaluation: { accuracyScore, timeBonus, hintPenalty, totalScore, rati
 
 ## License
 
-Built for Microsoft AI Skills Fest 2026.
+MIT Licence
 
 ---
 
