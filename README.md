@@ -1,4 +1,4 @@
-# Cyber Escape Room - Microsoft AI Skills Fest 2026
+# Cyber Escape Room 
 
 
 > **An AI-powered cybersecurity investigation game where you act as a SOC analyst solving realistic incident-response cases.**
